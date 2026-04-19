@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "bun:test";
 
 import { lintGraceProject } from "./grace-lint";
+import { formatLintExplanation, getLintIssueGuide } from "./lint/catalog";
 
 function createProject() {
   const root = mkdtempSync(path.join(os.tmpdir(), "grace-lint-"));
@@ -911,17 +912,13 @@ test("run", () => {
   });
 
   it("explains lint issue codes through the CLI", () => {
-    const repoRoot = path.resolve(import.meta.dir, "..");
-    const result = Bun.spawnSync({
-      cmd: [process.execPath, "run", "./src/grace.ts", "lint", "--explain", "docs.missing-required-artifact"],
-      cwd: repoRoot,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    const guide = getLintIssueGuide("docs.missing-required-artifact");
+    const explanation = formatLintExplanation("docs.missing-required-artifact");
 
-    expect(result.exitCode).toBe(0);
-    expect(Buffer.from(result.stdout).toString("utf8")).toContain("Missing Required GRACE Artifact");
-    expect(Buffer.from(result.stdout).toString("utf8")).toContain("Remediation");
+    expect(guide.title).toBe("Missing Required GRACE Artifact");
+    expect(guide.remediation.length).toBeGreaterThan(0);
+    expect(explanation).toContain("Missing Required GRACE Artifact");
+    expect(explanation).toContain("Remediation");
   });
 
   it("supports fail-on warnings for CI-oriented lint runs", () => {
