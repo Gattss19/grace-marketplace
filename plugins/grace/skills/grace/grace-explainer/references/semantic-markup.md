@@ -48,7 +48,7 @@ Shared-docs boundary rule:
 
 ## Function or Component Level
 
-Every exported function or component must have a contract:
+Every exported function or component must have a contract placed before function signature and docstrings/comments:
 
 ```
 // START_CONTRACT: functionName

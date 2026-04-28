@@ -29,7 +29,7 @@ Important distinction:
 
 ## Function Contracts
 
-Every exported function or component must have:
+Every exported function or component must have a contract placed before function signature and docstrings/comments:
 
 ```
 // START_CONTRACT: functionName

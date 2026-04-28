@@ -66,6 +66,7 @@ For each approved step, process exactly one module at a time.
 Follow this protocol for the assigned module:
 - use the step packet as the primary source of truth
 - generate or update code with MODULE_CONTRACT, MODULE_MAP, CHANGE_SUMMARY, function contracts, and semantic blocks
+- place function contracts above both: function signature and docstrings/comments; never place START_CONTRACT/END_CONTRACT inside function body
 - generate or update module-local tests inside the approved write scope
 - preserve or add stable log markers for the required critical branches
 - keep changes inside the approved write scope
