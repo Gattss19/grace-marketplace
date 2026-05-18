@@ -4,7 +4,7 @@
 
 This repository ships the GRACE skills plus the optional `grace` CLI. It is a packaging and distribution repository, not an end-user application.
 
-Current packaged version: `3.10.0`
+Current packaged version: `3.11.0`
 
 ## What This Repository Ships
 

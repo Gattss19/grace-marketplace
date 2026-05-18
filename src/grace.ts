@@ -11,7 +11,7 @@ import { verificationCommand } from "./grace-verification";
 const main = defineCommand({
   meta: {
     name: "grace",
-    version: "3.10.0",
+    version: "3.11.0",
     description: "GRACE CLI for linting, status snapshots, module health, verification queries, semantic markup, and GRACE project artifact navigation.",
   },
   subCommands: {
