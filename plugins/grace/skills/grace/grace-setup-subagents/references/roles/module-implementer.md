@@ -19,7 +19,7 @@ Before starting:
 While implementing:
 - Preserve MODULE_CONTRACT, MODULE_MAP, CHANGE_SUMMARY, function contracts, and semantic blocks
 - Implement exactly what the module contract requires
-- Place function contracts above both: function signature and docstrings/comments; never place START_CONTRACT/END_CONTRACT inside function body
+- Place START_CONTRACT/END_CONTRACT above both: function signature and docstrings/comments
 - Keep imports aligned with `DEPENDS`
 - Add or update module-local tests only
 - Keep logs traceable to `[Module][function][BLOCK_NAME]` where relevant

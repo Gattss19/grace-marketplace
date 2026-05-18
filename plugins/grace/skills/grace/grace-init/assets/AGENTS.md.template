@@ -53,7 +53,7 @@ Agents have freedom in HOW to implement, but not in WHAT to build. Contracts, pl
 ```
 
 ### Function or Component Level
-Function contracts must be placed above function signature and docstrings/comments. Never place `START_CONTRACT`/`END_CONTRACT` inside function bodies.
+Place START_CONTRACT/END_CONTRACT above function signature and docstrings/comments.
 ```
 // START_CONTRACT: functionName
 //   PURPOSE: [What it does]

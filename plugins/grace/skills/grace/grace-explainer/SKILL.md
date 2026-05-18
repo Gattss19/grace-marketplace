@@ -93,6 +93,7 @@ Each layer feeds the next. The knowledge graph and verification plan are both ou
 Important boundary rule:
 - shared GRACE docs describe only public module contracts and public module interfaces
 - private helpers, local-only types, and internal orchestration details stay in the module file header, function contracts, and semantic blocks
+- place START_CONTRACT/END_CONTRACT above both: function signature and docstrings/comments
 
 ## Optional CLI Support
 

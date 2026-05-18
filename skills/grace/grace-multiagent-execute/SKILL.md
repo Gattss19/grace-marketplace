@@ -109,7 +109,7 @@ For each approved wave:
 3. Require the worker to:
    - generate or update code using the module contract and verification excerpt from the packet
    - preserve MODULE_CONTRACT, MODULE_MAP, CHANGE_SUMMARY, function contracts, and semantic blocks
-   - place function contracts above both: function signature and docstrings/comments; never place START_CONTRACT/END_CONTRACT inside function body
+   - place START_CONTRACT/END_CONTRACT above both: function signature and docstrings/comments
    - add or update module-local tests only
      - preserve or add required stable log markers for critical branches
      - run module-local verification only
