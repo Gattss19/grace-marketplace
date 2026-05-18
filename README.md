@@ -210,6 +210,59 @@ Rule of thumb:
 - `grace module show` is the shared/public truth
 - `grace file show` is the file-local/private truth
 
+## Grep-First Navigation
+
+GRACE is designed to be easy to navigate through exact-text search.
+
+Prefer this order when narrowing scope:
+
+1. Search shared/public artifacts for module and verification IDs: `docs/knowledge-graph.xml`, `docs/development-plan.xml`, `docs/verification-plan.xml`
+2. Search file-local anchors for implementation context: `MODULE_CONTRACT`, `MODULE_MAP`, `START_CONTRACT:`, `START_BLOCK_`, `START_CHANGE_SUMMARY`, `LINKS:`
+3. Read full files only after the target module, file, or block is narrowed
+
+Common anchors:
+
+- `M-` for module IDs
+- `V-M-` for verification IDs
+- `CrossLink` for graph edges
+- `START_MODULE_CONTRACT`
+- `START_MODULE_MAP`
+- `START_CONTRACT:`
+- `START_BLOCK_`
+- `START_CHANGE_SUMMARY`
+- `LINKS:`
+
+Copy-paste grep recipes:
+
+```text
+# find module records in shared docs
+grep -R -n -E '\bM-[A-Z0-9]+(-[A-Z0-9]+)*\b' docs/development-plan.xml docs/knowledge-graph.xml
+
+# find verification entries in shared docs
+grep -R -n -E '\bV-M-[A-Z0-9]+(-[A-Z0-9]+)*\b' docs/verification-plan.xml docs/knowledge-graph.xml
+
+# find graph links from file-local markup into shared docs
+grep -R -n 'LINKS:' src tests
+
+# find file-level GRACE contracts
+grep -R -n 'START_MODULE_CONTRACT\|START_MODULE_MAP\|START_CHANGE_SUMMARY' src tests
+
+# find function/type contracts and logic blocks
+grep -R -n 'START_CONTRACT:\|START_BLOCK_' src tests
+
+# find all mentions of one module ID everywhere
+grep -R -n 'M-XXX' docs src tests
+
+# find all verification references for one module everywhere
+grep -R -n 'V-M-XXX\|M-XXX' docs src tests
+```
+
+Normalization rules behind these patterns:
+
+- module IDs should be uppercase kebab with `M-` prefix only
+- verification IDs should be uppercase kebab with `V-M-` prefix only
+- use exact field labels and anchor prefixes instead of aliases or prose synonyms
+
 ## Core GRACE Artifacts
 
 | Artifact | Role |
@@ -237,8 +290,10 @@ $grace-execute or $grace-multiagent-execute
 ### Inspect One Module Quickly
 
 ```text
+grep "M-" docs/development-plan.xml docs/knowledge-graph.xml
 grace module find <name-or-path>
 grace module show M-XXX --with verification
+grep "LINKS:" src tests
 grace file show <governed-file> --contracts --blocks
 ```
 
@@ -254,8 +309,10 @@ $grace-refresh
 ### Debug a Failing Flow
 
 ```text
+grep "V-M-" docs/verification-plan.xml docs/knowledge-graph.xml
 grace module find <error-or-path>
 grace module show M-XXX --with verification
+grep "START_BLOCK_" src tests
 grace file show <governed-file> --contracts --blocks
 $grace-fix
 ```

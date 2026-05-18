@@ -270,6 +270,89 @@ export function run() {
     expect(codes).toContain("plan.missing-verification-entry");
   });
 
+  it("enforces canonical grep-stable IDs, field labels, and block names", () => {
+    const root = createProject();
+    writeCurrentDocs(root);
+
+    writeProjectFile(
+      root,
+      "docs/knowledge-graph.xml",
+      `<KnowledgeGraph>
+  <Project NAME="Example" VERSION="0.1.0">
+    <M-example NAME="Example" TYPE="CORE_LOGIC">
+      <verification-ref>V-M-example</verification-ref>
+      <annotations>
+        <fn-run PURPOSE="Run the example flow" />
+      </annotations>
+      <CrossLink source="M-example" target="M-EXAMPLE" relation="reads-config" />
+    </M-example>
+  </Project>
+</KnowledgeGraph>`,
+    );
+
+    writeProjectFile(
+      root,
+      "docs/development-plan.xml",
+      `<DevelopmentPlan VERSION="0.1.0">
+  <Modules>
+    <M-EXAMPLE NAME="Example" TYPE="CORE_LOGIC" STATUS="planned">
+      <verification-ref>V-M-EXAMPLE</verification-ref>
+    </M-EXAMPLE>
+  </Modules>
+  <ImplementationOrder>
+    <Phase-1 name="Foundation" status="pending">
+      <step-1 module="M-example" status="pending" verification="V-M-example">Implement example.</step-1>
+    </Phase-1>
+  </ImplementationOrder>
+</DevelopmentPlan>`,
+    );
+
+    writeProjectFile(
+      root,
+      "src/example.ts",
+      `// START_MODULE_CONTRACT
+//   PURPOSE: Run the example flow.
+//   SCOPE: Execute the happy path.
+//   DEPENDS: none
+//   LINKS_TO: M-EXAMPLE
+// END_MODULE_CONTRACT
+//
+// START_MODULE_MAP
+//   run - Execute the example flow.
+// END_MODULE_MAP
+//
+// START_CHANGE_SUMMARY
+//   LAST_CHANGE: [v0.1.0 - Added example module]
+// END_CHANGE_SUMMARY
+//
+// START_CONTRACT: run
+//   PURPOSE: Run the example flow.
+//   INPUTS: { none }
+//   OUTPUT: { string - flow status }
+//   SIDE_EFFECTS: none
+//   LINKS: M-EXAMPLE
+// END_CONTRACT: run
+export function run() {
+  // START_BLOCK_execute_flow
+  return "ok";
+  // END_BLOCK_execute_flow
+}
+`,
+    );
+
+    const result = lintGraceProject(root);
+    const codes = result.issues.map((issue) => issue.code);
+
+    expect(codes).toContain("xml.invalid-module-id");
+    expect(codes).toContain("xml.invalid-verification-id");
+    expect(codes).toContain("xml.invalid-crosslink-shape");
+    expect(codes).toContain("plan.invalid-module-id");
+    expect(codes).toContain("plan.invalid-verification-id");
+    expect(codes).toContain("markup.unknown-module-contract-field");
+    expect(codes).toContain("markup.unknown-function-contract-field");
+    expect(codes).toContain("markup.invalid-block-name");
+  });
+
   it("allows partial repositories when requested", () => {
     const root = createProject();
     writeProjectFile(root, "src/plain.ts", `export const value = 1;\n`);

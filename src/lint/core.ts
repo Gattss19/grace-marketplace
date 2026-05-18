@@ -31,6 +31,12 @@ const REQUIRED_DOCS = ["docs/knowledge-graph.xml", "docs/development-plan.xml", 
 
 const OPTIONAL_PACKET_DOC = "docs/operational-packets.xml";
 const LINT_CONFIG_FILE = ".grace-lint.json";
+const MODULE_ID_REGEX = /^M-[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
+const VERIFICATION_ID_REGEX = /^V-M-[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
+const BLOCK_NAME_REGEX = /^[A-Z0-9]+(?:_[A-Z0-9]+)*$/;
+const MODULE_CONTRACT_FIELDS = new Set(["PURPOSE", "SCOPE", "DEPENDS", "LINKS", "ROLE", "MAP_MODE"]);
+const FUNCTION_CONTRACT_FIELDS = new Set(["PURPOSE", "INPUTS", "OUTPUTS", "SIDE_EFFECTS", "LINKS"]);
+const ANNOTATION_TAG_PREFIXES = ["fn-", "type-", "class-", "export-", "const-"];
 
 const UNIQUE_TAG_ANTI_PATTERNS = [
   {
@@ -161,6 +167,16 @@ function lintScopedMarkers(
     if (startMatch?.[1]) {
       const name = startMatch[1];
       if (kind === "block") {
+        if (!BLOCK_NAME_REGEX.test(name)) {
+          addIssue(result, {
+            severity: "error",
+            code: "markup.invalid-block-name",
+            file: relativePath,
+            line: index + 1,
+            message: `Semantic block name \`${name}\` must use uppercase snake form after START_BLOCK_.`,
+          });
+        }
+
         if (seen.has(name)) {
           addIssue(result, {
             severity: "error",
@@ -179,6 +195,16 @@ function lintScopedMarkers(
 
     if (endMatch?.[1]) {
       const name = endMatch[1];
+      if (kind === "block" && !BLOCK_NAME_REGEX.test(name)) {
+        addIssue(result, {
+          severity: "error",
+          code: "markup.invalid-block-name",
+          file: relativePath,
+          line: index + 1,
+          message: `Semantic block name \`${name}\` must use uppercase snake form after END_BLOCK_.`,
+        });
+      }
+
       const active = stack[stack.length - 1];
 
       if (!active) {
@@ -247,6 +273,47 @@ function parseModuleContract(section: MarkupSection) {
     role: roleValue && VALID_ROLES.has(roleValue) ? roleValue : undefined,
     mapMode: mapModeValue && VALID_MAP_MODES.has(mapModeValue) ? mapModeValue : undefined,
   } satisfies ModuleContractInfo;
+}
+
+function lintContractFieldLabels(
+  result: LintResult,
+  relativePath: string,
+  section: MarkupSection,
+  allowedFields: Set<string>,
+  code: string,
+  label: string,
+) {
+  const lines = section.content.split("\n");
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const cleaned = stripCommentPrefix(lines[index]).trim();
+    if (!cleaned) {
+      continue;
+    }
+
+    const match = cleaned.match(/^([A-Za-z_]+):\s*/);
+    if (!match) {
+      continue;
+    }
+
+    if (!allowedFields.has(match[1])) {
+      addIssue(result, {
+        severity: "error",
+        code,
+        file: relativePath,
+        line: section.startLine + index,
+        message: `${label} uses non-canonical field \`${match[1]}\`. Use exact GRACE field labels only.`,
+      });
+    }
+  }
+}
+
+function collectExactContractSections(text: string) {
+  return Array.from(text.matchAll(/START_CONTRACT:\s*([A-Za-z0-9_$.-]+)([\s\S]*?)END_CONTRACT:\s*\1/g)).map((match) => ({
+    content: match[2] ?? "",
+    startLine: match.index === undefined ? 1 : lineNumberAt(text, match.index),
+    endLine: match.index === undefined ? 1 : lineNumberAt(text, match.index + match[0].length),
+  })) satisfies MarkupSection[];
 }
 
 function toSymbolName(label: string) {
@@ -405,6 +472,98 @@ function extractVerificationRefs(text: string) {
     value: match[1],
     line: match.index === undefined ? undefined : lineNumberAt(text, match.index),
   }));
+}
+
+function lintCanonicalXmlAnchors(result: LintResult, relativePath: string, text: string) {
+  for (const match of text.matchAll(/<([A-Za-z][A-Za-z0-9-]*)(?=[\s>])/g)) {
+    const tagName = match[1];
+    const line = match.index === undefined ? undefined : lineNumberAt(text, match.index);
+
+    if (tagName.startsWith("M-") && !MODULE_ID_REGEX.test(tagName)) {
+      addIssue(result, {
+        severity: "error",
+        code: "xml.invalid-module-id",
+        file: relativePath,
+        line,
+        message: `Module tag \`${tagName}\` must use exact M-<UPPER-KEBAB> form.`,
+      });
+    }
+
+    if (tagName.startsWith("V-M-") && !VERIFICATION_ID_REGEX.test(tagName)) {
+      addIssue(result, {
+        severity: "error",
+        code: "xml.invalid-verification-id",
+        file: relativePath,
+        line,
+        message: `Verification tag \`${tagName}\` must use exact V-M-<UPPER-KEBAB> form.`,
+      });
+    }
+
+    if (tagName === "CrossLink") {
+      const endIndex = match.index === undefined ? -1 : text.indexOf(">", match.index);
+      const tagText = endIndex === -1 || match.index === undefined ? "" : text.slice(match.index, endIndex + 1);
+      const fromMatch = tagText.match(/\sfrom="([^"]+)"/);
+      const toMatch = tagText.match(/\sto="([^"]+)"/);
+      const relationMatch = tagText.match(/\srelation="([^"]+)"/);
+      const hasAlternateAttrs = /\s(source|target)=/.test(tagText);
+
+      if (!fromMatch || !toMatch || !relationMatch || hasAlternateAttrs) {
+        addIssue(result, {
+          severity: "error",
+          code: "xml.invalid-crosslink-shape",
+          file: relativePath,
+          line,
+          message: "CrossLink tags must use exact `from`, `to`, and `relation` attributes without alternate names.",
+        });
+      }
+
+      if (fromMatch && !MODULE_ID_REGEX.test(fromMatch[1])) {
+        addIssue(result, {
+          severity: "error",
+          code: "xml.invalid-module-id",
+          file: relativePath,
+          line,
+          message: `CrossLink from=\"${fromMatch[1]}\" must use exact M-<UPPER-KEBAB> form.`,
+        });
+      }
+
+      if (toMatch && !MODULE_ID_REGEX.test(toMatch[1])) {
+        addIssue(result, {
+          severity: "error",
+          code: "xml.invalid-module-id",
+          file: relativePath,
+          line,
+          message: `CrossLink to=\"${toMatch[1]}\" must use exact M-<UPPER-KEBAB> form.`,
+        });
+      }
+    }
+
+    if (ANNOTATION_TAG_PREFIXES.some((prefix) => tagName.startsWith(prefix))) {
+      const prefix = ANNOTATION_TAG_PREFIXES.find((candidate) => tagName.startsWith(candidate));
+      const suffix = prefix ? tagName.slice(prefix.length) : "";
+      if (!suffix || /\s/.test(suffix)) {
+        addIssue(result, {
+          severity: "error",
+          code: "xml.invalid-annotation-tag",
+          file: relativePath,
+          line,
+          message: `Annotation tag \`${tagName}\` must keep the canonical prefix and a non-empty suffix.`,
+        });
+      }
+    }
+  }
+
+  for (const ref of extractVerificationRefs(text)) {
+    if (!VERIFICATION_ID_REGEX.test(ref.value)) {
+      addIssue(result, {
+        severity: "error",
+        code: "xml.invalid-verification-id",
+        file: relativePath,
+        line: ref.line,
+        message: `Verification reference \`${ref.value}\` must use exact V-M-<UPPER-KEBAB> form.`,
+      });
+    }
+  }
 }
 
 function extractStepRefs(text: string) {
@@ -840,6 +999,7 @@ function lintGovernedFile(result: LintResult, root: string, filePath: string, te
 
   const contract = moduleContractSection ? parseModuleContract(moduleContractSection) : null;
   const mapItems = moduleMapSection ? parseModuleMapItems(moduleMapSection) : [];
+  const functionContractSections = collectExactContractSections(text);
   const adapter = getLanguageAdapter(filePath);
   let analysis: LanguageAnalysis | null = null;
   if (adapter) {
@@ -858,6 +1018,15 @@ function lintGovernedFile(result: LintResult, root: string, filePath: string, te
   const mapMode = inferMapMode(contract, role, mapItems, analysis);
 
   if (moduleContractSection && contract) {
+    lintContractFieldLabels(
+      result,
+      relativePath,
+      moduleContractSection,
+      MODULE_CONTRACT_FIELDS,
+      "markup.unknown-module-contract-field",
+      "MODULE_CONTRACT",
+    );
+
     const missingContractFields = ["PURPOSE", "SCOPE", "DEPENDS", "LINKS"].filter((field) => !contract.fields[field]);
     if (missingContractFields.length > 0) {
       addIssue(result, {
@@ -867,6 +1036,17 @@ function lintGovernedFile(result: LintResult, root: string, filePath: string, te
         message: `MODULE_CONTRACT should include PURPOSE, SCOPE, DEPENDS, and LINKS fields. Missing: ${missingContractFields.join(", ")}.`,
       });
     }
+  }
+
+  for (const contractSection of functionContractSections) {
+    lintContractFieldLabels(
+      result,
+      relativePath,
+      contractSection,
+      FUNCTION_CONTRACT_FIELDS,
+      "markup.unknown-function-contract-field",
+      "START_CONTRACT section",
+    );
   }
 
   if (moduleContractSection && contract?.fields.ROLE && !contract.role) {
@@ -978,6 +1158,7 @@ export function lintGraceProject(projectRoot: string, options: LintOptions = {})
 
     result.xmlFilesChecked += 1;
     lintUniqueTags(result, relativePath, contents);
+    lintCanonicalXmlAnchors(result, relativePath, contents);
   }
 
   const operationalPackets = readTextIfExists(path.join(root, OPTIONAL_PACKET_DOC));
@@ -1026,6 +1207,26 @@ export function lintGraceProject(projectRoot: string, options: LintOptions = {})
     }
 
     for (const step of extractStepRefs(developmentPlan)) {
+      if (step.moduleId && !MODULE_ID_REGEX.test(step.moduleId)) {
+        addIssue(result, {
+          severity: "error",
+          code: "plan.invalid-module-id",
+          file: "docs/development-plan.xml",
+          line: step.line,
+          message: `${step.stepTag} uses non-canonical module ID \`${step.moduleId}\`. Use exact M-<UPPER-KEBAB> form.`,
+        });
+      }
+
+      if (step.verificationId && !VERIFICATION_ID_REGEX.test(step.verificationId)) {
+        addIssue(result, {
+          severity: "error",
+          code: "plan.invalid-verification-id",
+          file: "docs/development-plan.xml",
+          line: step.line,
+          message: `${step.stepTag} uses non-canonical verification ID \`${step.verificationId}\`. Use exact V-M-<UPPER-KEBAB> form.`,
+        });
+      }
+
       if (step.moduleId && !planModuleIds.has(step.moduleId)) {
         addIssue(result, {
           severity: "error",

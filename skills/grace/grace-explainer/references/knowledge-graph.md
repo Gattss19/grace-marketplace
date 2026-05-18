@@ -46,6 +46,14 @@ Every module uses a **unique ID as the XML tag name**:
 
 This eliminates closing-tag polysemy — `</M-CONFIG>` is unambiguous while multiple `</Module>` closings create "semantic soup" for LLMs.
 
+Canonical grep-stable naming rules:
+
+- module IDs use exact uppercase kebab form with `M-` prefix only
+- verification refs use exact `V-M-<MODULE-SUFFIX>` form only
+- annotation tags use exact prefixes: `fn-`, `type-`, `class-`, `export-`, `const-`
+- edge tags use exact `CrossLink` spelling and exact `from`, `to`, `relation` attributes
+- avoid alternate synonyms like `moduleId`, `verificationId`, `edge`, `source`, or `target` when canonical anchors already exist
+
 ## Module Types
 
 | Type | Description |
@@ -83,6 +91,8 @@ CrossLinks MUST be bidirectionally consistent — if A depends on B, the CrossLi
 ## Verification References
 
 Modules may carry a `<verification-ref>` pointing to the matching `V-M-xxx` entry in `docs/verification-plan.xml`.
+
+The verification reference should be mechanically derivable from the module ID by replacing the leading `M-` with `V-M-`.
 
 This keeps navigation and proof linked:
 - the graph answers where the module lives and what it depends on

@@ -46,6 +46,15 @@ Shared-docs boundary rule:
 - `docs/development-plan.xml` and `docs/knowledge-graph.xml` should describe only the module's public contract and public interface
 - internal helpers, private types, and implementation-only orchestration belong in the file header markup and local function contracts instead of shared XML artifacts
 
+Canonical grep-stable naming rule:
+
+- keep module IDs in exact uppercase kebab form: `M-AUTH`, `M-USER-STORE`
+- keep verification IDs in exact derived form: `V-M-AUTH`, `V-M-USER-STORE`
+- keep field labels exact; do not rename `PURPOSE`, `SCOPE`, `DEPENDS`, `LINKS`, `INPUTS`, `OUTPUTS`, or `SIDE_EFFECTS`
+- keep block names uppercase snake after the prefix: `START_BLOCK_VALIDATE_INPUT`
+- prefer exact IDs and canonical annotation tags inside `LINKS:`: `M-*`, `V-M-*`, `fn-*`, `type-*`, `class-*`, `export-*`, `const-*`
+- avoid prose-only references when an exact anchor can be emitted instead
+
 ## Function or Component Level
 
 Every exported function or component must have a contract placed before function signature and docstrings/comments:
@@ -123,3 +132,4 @@ expect(hasLogMarker("info", "[ChatDomain][createChat][BLOCK_INSERT_CHAT]")).toBe
    - `SUMMARY` => summarize grouped surfaces without enumerating every symbol
    - `NONE` => omit `MODULE_MAP` when the file role truly does not need one
 6. Shared XML artifacts should never mirror the whole file header mechanically. Only public module-facing contract and interface details belong there.
+7. Do not invent alternate field names or ID prefixes if an exact canonical GRACE anchor already exists.

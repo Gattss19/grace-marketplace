@@ -32,6 +32,53 @@ Never jump straight to code when requirements, architecture, or verification int
 ### 6. Governed Autonomy
 Agents have freedom in HOW to implement, but not in WHAT to build. Contracts, plans, graph references, and verification requirements define the allowed space.
 
+## Grep-First Navigation
+
+Use shared docs and semantic anchors as the primary navigation surface. Prefer grep and exact-text lookup before broad prose reading.
+
+Navigation order:
+
+1. Shared/public truth: `docs/knowledge-graph.xml`, `docs/development-plan.xml`, `docs/verification-plan.xml`
+2. File-local/private truth: `MODULE_CONTRACT`, `MODULE_MAP`, `CHANGE_SUMMARY`, function contracts, semantic blocks
+3. Full file reads only after the target module, file, or block is narrowed
+
+Canonical search anchors:
+
+- `START_MODULE_CONTRACT` / `END_MODULE_CONTRACT`
+- `START_MODULE_MAP` / `END_MODULE_MAP`
+- `START_CONTRACT:` / `END_CONTRACT:`
+- `START_BLOCK_` / `END_BLOCK_`
+- `START_CHANGE_SUMMARY` / `END_CHANGE_SUMMARY`
+- `LINKS:` for graph-linked references
+- `M-` for module IDs
+- `V-M-` for verification IDs
+- `CrossLink` for graph edges
+
+Canonical grep-stable naming rules:
+
+- Module IDs use exact uppercase kebab form: `M-<TOKEN>` or `M-<TOKEN>-<TOKEN>` (`M-AUTH`, `M-USER-STORE`)
+- Verification IDs use exact derived form: `V-M-<MODULE-SUFFIX>` (`V-M-AUTH`, `V-M-USER-STORE`)
+- Module contract field names stay exact: `PURPOSE`, `SCOPE`, `DEPENDS`, `LINKS`, `ROLE`, `MAP_MODE`
+- Function contract field names stay exact: `PURPOSE`, `INPUTS`, `OUTPUTS`, `SIDE_EFFECTS`, `LINKS`
+- Semantic block names use uppercase snake form after the prefix: `START_BLOCK_VALIDATE_INPUT`
+- `LINKS:` values should prefer exact IDs or canonical annotation tags instead of prose references: `M-*`, `V-M-*`, `fn-*`, `type-*`, `class-*`, `export-*`, `const-*`
+- Graph edges use the exact `CrossLink from="..." to="..." relation="..."` shape; do not invent alternate attribute names
+
+Canonical search recipes:
+
+- Find the target module record: search `M-<ID>` in `docs/development-plan.xml` and `docs/knowledge-graph.xml`
+- Find verification for a module: search `V-M-<ID>` or the module ID in `docs/verification-plan.xml`
+- Find implementation files tied to graph context: search `LINKS:` plus the module ID in `src/` and `tests/`
+- Find file-local contracts quickly: search `START_MODULE_CONTRACT` or `START_CONTRACT:`
+- Find important logic slices: search `START_BLOCK_`
+- Find recent local rationale: search `START_CHANGE_SUMMARY`
+
+AI-friendly documentation rule:
+
+- do not restate code in prose when exact anchors already exist
+- record only non-obvious intent, invariants, hazards, and search hints
+- if a fact can be maintained as code, XML, contract markup, or a stable anchor, keep it there instead of duplicating it in Markdown
+
 ## Semantic Markup Reference
 
 ### Module Level
