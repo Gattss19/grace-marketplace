@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
+import { CODE_EXTENSIONS } from "./language-registry";
 
 export type TextSection = {
   content: string;
@@ -18,33 +19,6 @@ const DEFAULT_IGNORED_DIRS = new Set([
   ".cache",
 ]);
 
-const CODE_EXTENSIONS = new Set([
-  ".js",
-  ".jsx",
-  ".ts",
-  ".tsx",
-  ".mjs",
-  ".cjs",
-  ".mts",
-  ".cts",
-  ".py",
-  ".pyi",
-  ".go",
-  ".java",
-  ".kt",
-  ".rs",
-  ".rb",
-  ".php",
-  ".swift",
-  ".scala",
-  ".sql",
-  ".sh",
-  ".bash",
-  ".zsh",
-  ".clj",
-  ".cljs",
-  ".cljc",
-]);
 
 export function normalizeRelative(root: string, filePath: string) {
   return path.relative(root, filePath) || ".";

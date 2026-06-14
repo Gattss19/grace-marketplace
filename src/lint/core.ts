@@ -818,7 +818,14 @@ function lintAutonomousReadiness(
         );
       }
 
-      if (!entry.moduleChecks.some((check) => check.includes(testFile) || check.includes(path.dirname(testFile)))) {
+      // CWD-aware normalization for module check comparison
+      let normalized = testFile;
+      if (entry.cwd && entry.cwd !== "." && entry.cwd !== "" && testFile.startsWith(entry.cwd + "/")) {
+        normalized = testFile.slice(entry.cwd.length + 1);
+      }
+      const dir = path.dirname(normalized);
+
+      if (!entry.moduleChecks.some((check) => check.includes(normalized) || check.includes(dir))) {
         addAutonomyIssue(
           result,
           "warning",

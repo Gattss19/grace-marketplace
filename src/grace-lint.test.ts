@@ -1070,3 +1070,41 @@ export function run() {
     expect(Buffer.from(result.stdout).toString("utf8")).toContain("Warnings:");
   });
 });
+
+describe("monorepo CWD support", () => {
+  it("autonomous profile does not produce false positive with CWD attribute", () => {
+    const root = createProject();
+    writeProjectFile(root, "AGENTS.md", "## AGENTS.md\n");
+    writeProjectFile(root, "docs/technology.xml", "<Technology><stack>Bun</stack></Technology>");
+    writeProjectFile(root, "docs/knowledge-graph.xml",
+      `<KnowledgeGraph><ModuleMap><M-AUTH name='Auth' path='packages/auth' type='RUNTIME'/></ModuleMap></KnowledgeGraph>`);
+    writeProjectFile(root, "docs/development-plan.xml",
+      `<DevelopmentPlan><ImplementationOrder><Phase-1 name='Core'><step-1 module='M-AUTH'>Test</step-1></Phase-1></ImplementationOrder></DevelopmentPlan>`);
+    writeProjectFile(root, "docs/verification-plan.xml",
+      `<VerificationPlan VERSION="0.1.0">
+  <ModuleVerification>
+    <V-M-AUTH MODULE="M-AUTH" CWD="packages/auth">
+      <test-files>
+        <file-1>packages/auth/src/auth_test.dart</file-1>
+      </test-files>
+      <module-checks>
+        <command-1>dart test src/auth_test.dart</command-1>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">Auth works.</scenario-1>
+      </scenarios>
+    </V-M-AUTH>
+  </ModuleVerification>
+</VerificationPlan>`);
+
+    writeProjectFile(root, "packages/auth/src/auth_test.dart",
+      "import 'package:test/test.dart';\nvoid main() { test('works', () {}); }");
+
+    const result = lintGraceProject(root, { profile: "autonomous" });
+
+    const falsePositives = result.issues.filter(
+      (i) => i.code === "autonomy.verification-module-check-does-not-reference-test-file"
+    );
+    expect(falsePositives).toHaveLength(0);
+  });
+});
