@@ -1107,4 +1107,80 @@ describe("monorepo CWD support", () => {
     );
     expect(falsePositives).toHaveLength(0);
   });
+
+  it("produces warning when CWD is absent (proving CWD stripping is necessary)", () => {
+    const root = createProject();
+    writeProjectFile(root, "AGENTS.md", "## AGENTS.md\n");
+    writeProjectFile(root, "docs/technology.xml", "<Technology><stack>Bun</stack></Technology>");
+    writeProjectFile(root, "docs/knowledge-graph.xml",
+      `<KnowledgeGraph><ModuleMap><M-AUTH name='Auth' path='packages/auth' type='RUNTIME'/></ModuleMap></KnowledgeGraph>`);
+    writeProjectFile(root, "docs/development-plan.xml",
+      `<DevelopmentPlan><ImplementationOrder><Phase-1 name='Core'><step-1 module='M-AUTH'>Test</step-1></Phase-1></ImplementationOrder></DevelopmentPlan>`);
+    // Same fixture but WITHOUT CWD attribute
+    writeProjectFile(root, "docs/verification-plan.xml",
+      `<VerificationPlan VERSION="0.1.0">
+  <ModuleVerification>
+    <V-M-AUTH MODULE="M-AUTH">
+      <test-files>
+        <file-1>packages/auth/src/auth_test.dart</file-1>
+      </test-files>
+      <module-checks>
+        <command-1>dart test src/auth_test.dart</command-1>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">Auth works.</scenario-1>
+      </scenarios>
+    </V-M-AUTH>
+  </ModuleVerification>
+</VerificationPlan>`);
+
+    writeProjectFile(root, "packages/auth/src/auth_test.dart",
+      "import 'package:test/test.dart';\nvoid main() { test('works', () {}); }");
+
+    const result = lintGraceProject(root, { profile: "autonomous" });
+
+    const falsePositives = result.issues.filter(
+      (i) => i.code === "autonomy.verification-module-check-does-not-reference-test-file"
+    );
+    // Without CWD stripping, the full path does not match the module check
+    expect(falsePositives.length).toBeGreaterThan(0);
+  });
+
+  it("handles CWD with trailing slash", () => {
+    const root = createProject();
+    writeProjectFile(root, "AGENTS.md", "## AGENTS.md\n");
+    writeProjectFile(root, "docs/technology.xml", "<Technology><stack>Bun</stack></Technology>");
+    writeProjectFile(root, "docs/knowledge-graph.xml",
+      `<KnowledgeGraph><ModuleMap><M-AUTH name='Auth' path='packages/auth' type='RUNTIME'/></ModuleMap></KnowledgeGraph>`);
+    writeProjectFile(root, "docs/development-plan.xml",
+      `<DevelopmentPlan><ImplementationOrder><Phase-1 name='Core'><step-1 module='M-AUTH'>Test</step-1></Phase-1></ImplementationOrder></DevelopmentPlan>`);
+    // CWD with trailing slash
+    writeProjectFile(root, "docs/verification-plan.xml",
+      `<VerificationPlan VERSION="0.1.0">
+  <ModuleVerification>
+    <V-M-AUTH MODULE="M-AUTH" CWD="packages/auth/">
+      <test-files>
+        <file-1>packages/auth/src/auth_test.dart</file-1>
+      </test-files>
+      <module-checks>
+        <command-1>dart test src/auth_test.dart</command-1>
+      </module-checks>
+      <scenarios>
+        <scenario-1 kind="success">Auth works.</scenario-1>
+      </scenarios>
+    </V-M-AUTH>
+  </ModuleVerification>
+</VerificationPlan>`);
+
+    writeProjectFile(root, "packages/auth/src/auth_test.dart",
+      "import 'package:test/test.dart';\nvoid main() { test('works', () {}); }");
+
+    const result = lintGraceProject(root, { profile: "autonomous" });
+
+    const falsePositives = result.issues.filter(
+      (i) => i.code === "autonomy.verification-module-check-does-not-reference-test-file"
+    );
+    // Trailing slash should be normalized; CWD stripping still works
+    expect(falsePositives).toHaveLength(0);
+  });
 });

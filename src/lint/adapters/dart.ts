@@ -189,8 +189,8 @@ function runDartAnalyzer(filePath: string, text: string): LanguageAnalysis {
         return createEmptyAnalysis();
       }
     }
-
-    return createEmptyAnalysis();
+    // Match Python adapter: throw on non-zero exit to surface script failures
+    throw new Error(run.stderr.trim() || run.stdout.trim() || `Dart analyzer failed via ${binary}.`);
   }
 
   throw new Error("Dart adapter requires `dart` on PATH when linting Dart files.");

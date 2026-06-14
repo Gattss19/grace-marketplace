@@ -5,6 +5,7 @@ import { loadGraceLintConfig } from "./config";
 import { getLanguageAdapter } from "./adapters/base";
 import { withLintIssueGuide } from "./catalog";
 import { loadGraceArtifactIndex } from "../query/core";
+import { checkModuleCheckReferences } from "../verification/check-references";
 import {
   collectCodeFiles,
   findSection,
@@ -795,6 +796,9 @@ function lintAutonomousReadiness(
       );
     }
 
+    // Fast-path: use shared utility for batch check — skip per-file comparison when all pass
+    const allChecksReferenceTestFiles = checkModuleCheckReferences(entry.testFiles, entry.moduleChecks, entry.cwd);
+
     for (const testFile of entry.testFiles) {
       const absolutePath = path.isAbsolute(testFile) ? testFile : path.join(root, testFile);
       if (!existsSync(absolutePath)) {
@@ -818,21 +822,23 @@ function lintAutonomousReadiness(
         );
       }
 
-      // CWD-aware normalization for module check comparison
-      let normalized = testFile;
-      if (entry.cwd && entry.cwd !== "." && entry.cwd !== "" && testFile.startsWith(entry.cwd + "/")) {
-        normalized = testFile.slice(entry.cwd.length + 1);
-      }
-      const dir = path.dirname(normalized);
-
-      if (!entry.moduleChecks.some((check) => check.includes(normalized) || check.includes(dir))) {
-        addAutonomyIssue(
-          result,
-          "warning",
-          "autonomy.verification-module-check-does-not-reference-test-file",
-          "docs/verification-plan.xml",
-          `Verification entry \`${entry.id}\` does not have a module-check that clearly targets \`${testFile}\` or its containing directory.`,
-        );
+      // CWD-aware normalization (per-file warning only when batch check failed)
+      if (!allChecksReferenceTestFiles) {
+        let normalized = testFile;
+        const normalizedCwd = entry.cwd ? entry.cwd.replace(/\/+$/, "") : entry.cwd;
+        if (normalizedCwd && normalizedCwd !== "." && normalizedCwd !== "" && testFile.startsWith(normalizedCwd + "/")) {
+          normalized = testFile.slice(normalizedCwd.length + 1);
+        }
+        const dir = path.dirname(normalized);
+        if (!entry.moduleChecks.some((check) => check.includes(normalized) || check.includes(dir))) {
+          addAutonomyIssue(
+            result,
+            "warning",
+            "autonomy.verification-module-check-does-not-reference-test-file",
+            "docs/verification-plan.xml",
+            `Verification entry \`${entry.id}\` does not have a module-check that clearly targets \`${testFile}\` or its containing directory.`,
+          );
+        }
       }
     }
 

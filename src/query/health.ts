@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { getModuleName, getModulePath, getModuleType, resolveModule } from "./core";
+import { checkModuleCheckReferences } from "../verification/check-references";
 import type { GraceArtifactIndex, ModuleHealthIssue, ModuleHealthRecord, ModuleRecord } from "./types";
 
 function isLikelyTestPath(relativePath: string) {
@@ -188,6 +189,9 @@ export function buildModuleHealth(index: GraceArtifactIndex, moduleRecord: Modul
       );
     }
 
+    // Fast-path: use shared utility for batch check — skip per-file comparison when all pass
+    const allChecksReferenceTestFiles = checkModuleCheckReferences(entry.testFiles, entry.moduleChecks, entry.cwd);
+
     for (const testFile of entry.testFiles) {
       const absolutePath = path.isAbsolute(testFile) ? testFile : path.join(index.root, testFile);
       if (!existsSync(absolutePath)) {
@@ -211,21 +215,23 @@ export function buildModuleHealth(index: GraceArtifactIndex, moduleRecord: Modul
         );
       }
 
-      // CWD-aware normalization for module check comparison
-      let normalized = testFile;
-      if (entry.cwd && entry.cwd !== "." && entry.cwd !== "" && testFile.startsWith(entry.cwd + "/")) {
-        normalized = testFile.slice(entry.cwd.length + 1);
-      }
-      const dir = path.dirname(normalized);
-
-      if (!entry.moduleChecks.some((check) => check.includes(normalized) || check.includes(dir))) {
-        pushIssue(
-          warnings,
-          "warning",
-          "health.verification-module-check-does-not-reference-test-file",
-          `${entry.id} does not have a module-check that clearly targets ${testFile}.`,
-          `Make at least one module-check reference ${testFile} or its containing directory.`,
-        );
+      // CWD-aware normalization (per-file warning only when batch check failed)
+      if (!allChecksReferenceTestFiles) {
+        let normalized = testFile;
+        const normalizedCwd = entry.cwd ? entry.cwd.replace(/\/+$/, "") : entry.cwd;
+        if (normalizedCwd && normalizedCwd !== "." && normalizedCwd !== "" && testFile.startsWith(normalizedCwd + "/")) {
+          normalized = testFile.slice(normalizedCwd.length + 1);
+        }
+        const dir = path.dirname(normalized);
+        if (!entry.moduleChecks.some((check) => check.includes(normalized) || check.includes(dir))) {
+          pushIssue(
+            warnings,
+            "warning",
+            "health.verification-module-check-does-not-reference-test-file",
+            `${entry.id} does not have a module-check that clearly targets ${testFile}.`,
+            `Make at least one module-check reference ${testFile} or its containing directory.`,
+          );
+        }
       }
     }
 

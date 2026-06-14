@@ -17,6 +17,8 @@ export function checkModuleCheckReferences(
   moduleChecks: string[],
   cwd?: string,
 ): boolean {
+  // Normalize CWD: strip trailing slashes to avoid silent false positives
+  const normalizedCwd = cwd ? cwd.replace(/\/+$/, "") : cwd;
   if (testFiles.length === 0) {
     return true;
   }
@@ -26,8 +28,8 @@ export function checkModuleCheckReferences(
 
     // If cwd is provided and testFile starts with "cwd/", strip the prefix.
     // cwd="" or cwd="." are treated as absent (no normalization).
-    if (cwd && cwd !== "." && cwd !== "" && testFile.startsWith(cwd + "/")) {
-      normalized = testFile.slice(cwd.length + 1);
+    if (normalizedCwd && normalizedCwd !== "." && normalizedCwd !== "" && testFile.startsWith(normalizedCwd + "/")) {
+      normalized = testFile.slice(normalizedCwd.length + 1);
     }
 
     const dir = path.dirname(normalized);
