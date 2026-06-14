@@ -49,6 +49,7 @@ export type ModuleVerificationRecord = {
   id: string;
   moduleId?: string;
   priority?: string;
+  cwd?: string;               // ← working directory for module-checks (relative to repo root)
   testFiles: string[];
   moduleChecks: string[];
   scenarios: VerificationScenario[];

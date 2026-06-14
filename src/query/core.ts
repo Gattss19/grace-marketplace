@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { loadGraceLintConfig } from "../lint/config";
+import { CODE_EXTENSIONS } from "../language-registry";
 import type {
   FileBlockRecord,
   FileContractRecord,
@@ -37,33 +38,6 @@ const DEFAULT_IGNORED_DIRS = new Set([
   ".cache",
 ]);
 
-const CODE_EXTENSIONS = new Set([
-  ".js",
-  ".jsx",
-  ".ts",
-  ".tsx",
-  ".mjs",
-  ".cjs",
-  ".mts",
-  ".cts",
-  ".py",
-  ".pyi",
-  ".go",
-  ".java",
-  ".kt",
-  ".rs",
-  ".rb",
-  ".php",
-  ".swift",
-  ".scala",
-  ".sql",
-  ".sh",
-  ".bash",
-  ".zsh",
-  ".clj",
-  ".cljs",
-  ".cljc",
-]);
 
 type XmlElement = {
   tag: string;
@@ -322,6 +296,7 @@ function parseVerificationEntries(text: string) {
       id,
       moduleId: getAttr(attrs, "MODULE"),
       priority: getAttr(attrs, "PRIORITY"),
+      cwd: getAttr(attrs, "CWD"),    // ← read optional CWD attribute
       testFiles: parseTextListBlock(extractBlock(body, "test-files")),
       moduleChecks: parseTextListBlock(extractBlock(body, "module-checks")),
       scenarios: parseScenarioList(extractBlock(body, "scenarios")),
